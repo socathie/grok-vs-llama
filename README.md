@@ -1,6 +1,6 @@
 # Grok vs Llama
 
-![](grokVsLlama.png)
+![](cover.png)
 
 Grok, a 314B parameter LLM by X, was open-sourced recently. Grok is considered the pinnacle of open source LLM.
 
