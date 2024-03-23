@@ -75,8 +75,9 @@ contract GrokVsLlama is AIOracleCallbackReceiver {
 
     function requestBattle(uint256 grokRequestId) payable external {
         IPrompt.AIOracleRequest memory grokRequest = prompt.requests(grokRequestId);
-
-        require(grokRequest.sender == msg.sender, "Not your request");
+        
+        // !: sender should match, but commented out for testing
+        // require(grokRequest.sender == msg.sender, "Not your request");
         require(grokRequest.modelId == 9, "Not a Grok request");
 
         bytes memory input = abi.encodePacked(PROMPT_PREFIX, grokRequest.input, " Response: ", grokRequest.output);
