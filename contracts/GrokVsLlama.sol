@@ -1,6 +1,5 @@
-// SampleContract.sol
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.24;
 
 import "./interfaces/IPrompt.sol";
 import "./interfaces/IAIOracle.sol";
@@ -29,8 +28,8 @@ contract GrokVsLlama is AIOracleCallbackReceiver {
         bytes output;
     }
 
-    address immutable owner;
-    IPrompt immutable prompt;
+    address public immutable owner;
+    address public immutable prompt;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -40,13 +39,14 @@ contract GrokVsLlama is AIOracleCallbackReceiver {
     // requestId => AIOracleRequest
     mapping(uint256 => AIOracleRequest) public requests;
 
+    bytes public constant NO = hex"204e4f";
     uint256 public constant MODEL_ID = 11; // llama    
     uint64 public callbackGasLimit = 5_000_000; // llama
 
     /// @notice Initialize the contract, binding it to a specified AIOracle. Bounty is msg.value.
     constructor(IAIOracle _aiOracle, address _prompt) AIOracleCallbackReceiver(_aiOracle) payable {
         owner = msg.sender;
-        prompt = IPrompt(_prompt);
+        prompt = _prompt;
     }
 
     function setCallbackGasLimit(uint64 gasLimit) external onlyOwner {
@@ -63,7 +63,7 @@ contract GrokVsLlama is AIOracleCallbackReceiver {
         require(request.sender != address(0), "request not exists");
         request.output = output;
         emit promptsUpdated(requestId, string(request.input), string(output), callbackData);
-        if (keccak256(output) == keccak256("NO")) {
+        if (keccak256(output) == keccak256(NO)) { // No
             (bool success, ) = request.sender.call{value: address(this).balance}("");
             require(success, "Transfer failed.");
         }
@@ -73,23 +73,34 @@ contract GrokVsLlama is AIOracleCallbackReceiver {
         return aiOracle.estimateFee(MODEL_ID, callbackGasLimit);
     }
 
-    function requestBattle(uint256 grokRequestId) payable external {
-        IPrompt.AIOracleRequest memory grokRequest = prompt.requests(grokRequestId);
-        
-        // !: sender should match, but commented out for testing
-        // require(grokRequest.sender == msg.sender, "Not your request");
-        require(grokRequest.modelId == 9, "Not a Grok request");
+    function requestBattle(string memory input) payable external {
+        string memory output = IPrompt(prompt).getAIResult(9, input); // grok
 
-        bytes memory input = abi.encodePacked(PROMPT_PREFIX, grokRequest.input, " Response: ", grokRequest.output);
+        // !: should check prompt sender is the same as msg.sender, but struct in prompt is too big to read
+
+        bytes memory _prompt = abi.encodePacked(PROMPT_PREFIX, input, " Response: ", output);
         
-        // we do not need to set the callbackData in this example
+        // // we do not need to set the callbackData in this example
         uint256 requestId = aiOracle.requestCallback{value: msg.value}(
-            MODEL_ID, input, address(this), callbackGasLimit, ""
+            MODEL_ID, _prompt, address(this), callbackGasLimit, ""
         );
         AIOracleRequest storage request = requests[requestId];
-        request.input = input;
+        request.input = _prompt;
         request.sender = msg.sender;
-        emit promptRequest(requestId, msg.sender, string(input));
+        emit promptRequest(requestId, msg.sender, string(_prompt));
+    }
+
+    function testCallback(uint256 requestId, bytes calldata output, bytes calldata callbackData) external onlyOwner {
+        // since we do not set the callbackData in this example, the callbackData should be empty
+        AIOracleRequest storage request = requests[requestId];
+        require(request.sender != address(0), "request not exists");
+        request.output = output;
+        emit promptsUpdated(requestId, string(request.input), string(output), callbackData);
+        emit testing(keccak256(output), keccak256(NO));
+        if (keccak256(output) == keccak256(NO)) { // No
+            (bool success, ) = request.sender.call{value: address(this).balance}("");
+            require(success, "Transfer failed.");
+        }
     }
 
     receive() external payable {}
