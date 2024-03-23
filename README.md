@@ -18,6 +18,7 @@ We utilized ORA's Onchain AI Oracle (https://docs.ora.io/doc/cle/ai-oracle) to g
 
 ```shell
 npx hardhat ignition deploy ignition/modules/GrokVsLlama.js --network sepolia --verify
+npx hardhat run scripts/estimateGasLimit.js --network sepolia
 npx hardhat run scripts/testOnSepolia.js --network sepolia
 ```
 

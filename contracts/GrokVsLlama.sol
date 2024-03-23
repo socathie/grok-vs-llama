@@ -93,12 +93,11 @@ contract GrokVsLlama is AIOracleCallbackReceiver {
     function testCallback(uint256 requestId, bytes calldata output, bytes calldata callbackData) external onlyOwner {
         // since we do not set the callbackData in this example, the callbackData should be empty
         AIOracleRequest storage request = requests[requestId];
-        require(request.sender != address(0), "request not exists");
+        require(requestId == 0, "requestId must be 0");
         request.output = output;
-        emit promptsUpdated(requestId, string(request.input), string(output), callbackData);
-        emit testing(keccak256(output), keccak256(NO));
+        emit promptsUpdated(requestId, string("test"), string(output), callbackData);
         if (keccak256(output) == keccak256(NO)) { // No
-            (bool success, ) = request.sender.call{value: address(this).balance}("");
+            (bool success, ) = owner.call{value: 0}("");
             require(success, "Transfer failed.");
         }
     }
